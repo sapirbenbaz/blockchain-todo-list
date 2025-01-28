@@ -17,7 +17,7 @@ function TodoItem({ task, toggleCompleted }: TodoItemProps) {
         checked={task.completed}
         onChange={handleChange}
       />
-      <p>{task.text}</p>
+      <p>{task.description}</p>
     </div>
   );
 }

@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 import TodoItem from "./TodoItem";
 import { Task } from "../types/Task";
-import axios from "axios";
 import Loader from "./Loader";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { getTasks, postTask, completeTask } from "../services/api";
 
 function TodoList() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -12,19 +10,10 @@ function TodoList() {
   const [loading, setLoading] = useState<boolean>(false);
   const [loaderMessage, setLoaderMessage] = useState<string>("Loading");
 
-  useEffect(() => {
-    fetchTasks();
-  }, []);
-
-  async function fetchTasks() {
+  const fetchTasks = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/tasks`);
-      const fetchedTasks = response.data.map((task: any) => ({
-        id: Number(task.id),
-        text: task.description,
-        completed: task.completed,
-      }));
+      const fetchedTasks = await getTasks();
       setTasks(fetchedTasks);
     } catch (error) {
       console.error("Error fetching tasks:", error);
@@ -32,9 +21,9 @@ function TodoList() {
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  async function addTask(text: string) {
+  const addTask = async (text: string) => {
     if (!text.trim()) {
       alert("Task description cannot be empty");
       return;
@@ -43,10 +32,7 @@ function TodoList() {
     try {
       setLoading(true);
       setLoaderMessage("Pending transaction");
-      await axios.post(`${API_BASE_URL}/tasks`, {
-        description: text,
-      });
-
+      await postTask(text);
       await fetchTasks();
       setText("");
     } catch (error) {
@@ -55,26 +41,27 @@ function TodoList() {
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  async function toggleCompleted(id: number) {
+  const toggleCompleted = async (id: number) => {
     try {
       setLoading(true);
       setLoaderMessage("Pending transaction");
-
-      await axios.patch(`${API_BASE_URL}/tasks/${id}/complete`);
-      setTasks(
-        tasks.map((task) =>
-          task.id === id ? { ...task, completed: !task.completed } : task
-        )
-      );
+      await completeTask(id);
+      setTasks(tasks.map((task) =>
+        task.id === id ? { ...task, completed: !task.completed } : task
+      ));
     } catch (error) {
       console.error("Error completing task:", error);
       alert("Failed to complete task");
     } finally {
       setLoading(false);
     }
-  }
+  };
+
+  useEffect(() => {
+    fetchTasks();
+  }, []);
 
   return (
     <div className="todo-list">

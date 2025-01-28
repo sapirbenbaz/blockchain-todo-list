@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ethers } from 'ethers';
 import * as fs from 'fs';
@@ -9,6 +9,7 @@ export class BlockchainService {
   private provider: ethers.JsonRpcProvider;
   private wallet: ethers.Wallet;
   private contract: ethers.Contract;
+  private readonly logger = new Logger(BlockchainService.name);
 
   constructor(private readonly configService: ConfigService) {
     const rpcUrl = this.configService.get('RPC_URL');
@@ -27,35 +28,51 @@ export class BlockchainService {
   }
 
   async getTasks(): Promise<Task[]> {
-    const tasks = await this.contract.getTasks();
-    return tasks.map((task: any) => {
-      return {
-        id: task.id.toString(),
-        description: task.description,
-        completed: task.completed,
-      };
-    });
+    try {
+      this.logger.log('Getting tasks from blockchain');
+      const tasks = await this.contract.getTasks();
+      this.logger.log('Got tasks from blockchain successfully');
+      return tasks.map((task: Task) => {
+        return {
+          id: task.id.toString(),
+          description: task.description,
+          completed: task.completed,
+        };
+      });
+    } catch (error) {
+      this.logger.error(
+        'Failed to get tasks from blockchain. Throwing an error',
+      );
+      this.handleBlockchainError(error, 'getting tasks');
+    }
   }
 
   async addTask(taskDescription: string): Promise<void> {
     try {
+      this.logger.log('Adding a new task to blockchain');
       const tx = await this.contract.addTask(taskDescription);
       await tx.wait();
+      this.logger.log('Added a new task to blockchain successfully');
     } catch (error) {
+      this.logger.error('Failed to add a new task to blockchain');
       this.handleBlockchainError(error, 'adding a task');
     }
   }
 
   async completeTask(taskId: BigInt): Promise<void> {
     try {
+      this.logger.log('Completing a task on blockchain');
       const tx = await this.contract.completeTask(taskId);
       await tx.wait();
+      this.logger.log('Completed a new task to blockchain successfully');
     } catch (error) {
+      this.logger.error('Failed to complete task on blockchain');
+
       this.handleBlockchainError(error, 'complteing a task');
     }
   }
 
-  private handleBlockchainError(error: any, action: string): void {
+  private handleBlockchainError(error: any, action: string): never {
     const errorMap = {
       'Task is already completed': 'The task has already been completed',
       'Task does not exist': 'The task ID provided does not exist',
